@@ -1,67 +1,35 @@
 import { NextResponse } from 'next/server';
-import { Employee } from '@/types/employee';
-
-const EMPLOYEES: Employee[] = [
-  {
-    id: '1',
-    name: 'Avery Walker',
-    title: 'CEO',
-    department: 'Executive',
-    manager_id: null,
-    contact_email: 'avery.walker@example.com',
-    contact_phone: '555-111-2222',
-    hire_date: '2020-01-15',
-    salary: 250000,
-    status: 'active',
-  },
-  {
-    id: '2',
-    name: 'Jordan Kim',
-    title: 'VP of Engineering',
-    department: 'Engineering',
-    manager_id: '1',
-    contact_email: 'jordan.kim@example.com',
-    contact_phone: '555-222-3333',
-    hire_date: '2021-03-08',
-    salary: 190000,
-    status: 'leave',
-  },
-  {
-    id: '3',
-    name: 'Riley Patel',
-    title: 'Engineering Manager',
-    department: 'Engineering',
-    manager_id: '2',
-    contact_email: 'riley.patel@example.com',
-    contact_phone: '555-333-4444',
-    hire_date: '2022-07-21',
-    salary: 155000,
-    status: 'terminated',
-  },
-  {
-    id: '4',
-    name: 'Casey Rivera',
-    title: 'Software Engineer',
-    department: 'Engineering',
-    manager_id: '3',
-    contact_email: 'casey.rivera@example.com',
-    hire_date: '2023-02-10',
-    salary: 125000,
-    status: 'active',
-  },
-  {
-    id: '5',
-    name: 'Morgan Blake',
-    title: 'HR Generalist',
-    department: 'People Ops',
-    manager_id: '1',
-    contact_email: 'morgan.blake@example.com',
-    hire_date: '2021-11-05',
-    salary: 90000,
-    status: 'active',
-  },
-];
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
-  return NextResponse.json({ employees: EMPLOYEES });
+  try {
+    const employees = await prisma.employee.findMany({
+      orderBy: { name: 'asc' },
+    });
+    return NextResponse.json({ employees });
+  } catch (e) {
+    return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const created = await prisma.employee.create({
+      data: {
+        name: body.name,
+        title: body.title,
+        department: body.department,
+        managerId: body.managerId ?? null,
+        contactEmail: body.contactEmail,
+        contactPhone: body.contactPhone ?? null,
+        hireDate: new Date(body.hireDate),
+        salary: Number(body.salary),
+        status: body.status,
+      },
+    });
+    return NextResponse.json(created, { status: 201 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? 'Failed to create' }, { status: 400 });
+  }
 }
