@@ -1,17 +1,5 @@
 import { NextResponse } from 'next/server';
-
-type Employee = {
-  id: string;
-  name: string;
-  title: string;
-  department: string;
-  manager_id: string | null;
-  contact_email: string;
-  contact_phone?: string;
-  hire_date: string;
-  salary: number;
-  status: 'active' | 'leave' | 'terminated';
-};
+import { Employee } from '@/types/employee';
 
 const EMPLOYEES: Employee[] = [
   {
@@ -36,7 +24,7 @@ const EMPLOYEES: Employee[] = [
     contact_phone: '555-222-3333',
     hire_date: '2021-03-08',
     salary: 190000,
-    status: 'active',
+    status: 'leave',
   },
   {
     id: '3',
@@ -48,7 +36,7 @@ const EMPLOYEES: Employee[] = [
     contact_phone: '555-333-4444',
     hire_date: '2022-07-21',
     salary: 155000,
-    status: 'active',
+    status: 'terminated',
   },
   {
     id: '4',

@@ -1,17 +1,5 @@
 import React from 'react';
-
-type Employee = {
-  id: string;
-  name: string;
-  title: string;
-  department: string;
-  manager_id: string | null;
-  contact_email: string;
-  contact_phone?: string;
-  hire_date: string;
-  salary: number;
-  status: string;
-};
+import { Employee } from '@/types/employee';
 
 // Server Component fetch
 async function getEmployees() {
