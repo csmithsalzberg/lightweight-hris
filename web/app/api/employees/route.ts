@@ -30,6 +30,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(created, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? 'Failed to create' }, { status: 400 });
+    return NextResponse.json({ error: e?.message ?? 'Failed to create', code: e?.code ?? null, meta: e?.meta ?? null }, { status: 400 });
   }
 }

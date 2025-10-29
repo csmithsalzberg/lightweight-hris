@@ -12,6 +12,11 @@ A lightweight HRIS built with Next.js (App Router) and Prisma/Postgres.
   - `DELETE /api/employees/[id]` → delete
 - Org Chart stub (`/org-chart`): page scaffold for future visualization.
 
+#### Managing employees in the UI
+- Add: Click "Add Employee" on `/employees`, fill the form, Save.
+- Edit: Click "Edit" on a row, update fields, Save.
+- Delete: Click "Delete" on a row and confirm.
+
 ### Quick start
 
 1) Install deps

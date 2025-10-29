@@ -25,7 +25,7 @@ model Employee {
   salary        Int
   status        EmploymentStatus
 
-  manager       Employee?         @relation("ManagerReports", fields: [managerId], references: [id])
+  manager       Employee?         @relation("ManagerReports", fields: [managerId], references: [id], onDelete: SetNull)
   reports       Employee[]        @relation("ManagerReports")
 
   createdAt     DateTime          @default(now())
@@ -43,7 +43,7 @@ model ChangeLog {
   actorId     String?
   createdAt   DateTime @default(now())
 
-  employee    Employee? @relation(fields: [entityId], references: [id])
+  employee    Employee? @relation(fields: [entityId], references: [id], onDelete: Cascade)
 }
 
 
