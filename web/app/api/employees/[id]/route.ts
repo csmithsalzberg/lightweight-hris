@@ -22,6 +22,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id?: string }> 
     const id = p.id as string | undefined;
     if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     const body = await req.json();
+    const before = await prisma.employee.findUnique({ where: { id } });
     // Basic validation for managerId: disallow self and require existing manager when provided
     if (body.managerId) {
       if (body.managerId === id) {
@@ -60,6 +61,16 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id?: string }> 
         status: body.status,
       },
     });
+    // audit log
+    await prisma.changeLog.create({
+      data: {
+        entityType: 'Employee',
+        entityId: id,
+        action: 'update',
+        changes: { before, after: updated },
+        actorId: null,
+      },
+    });
     return NextResponse.json(updated);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'Failed to update', code: e?.code ?? null, meta: e?.meta ?? null }, { status: 400 });
@@ -74,9 +85,32 @@ export async function DELETE(
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
+    const before = await prisma.employee.findUnique({ where: { id } });
+    if (!before) {
+      // Idempotent delete: if it's already gone, respond OK
+      return NextResponse.json({ ok: true });
+    }
     // With onDelete rules (SetNull for manager reports and Cascade for change logs),
     // a simple delete is sufficient.
-    await prisma.employee.delete({ where: { id: id } });
+    try {
+      await prisma.employee.delete({ where: { id: id } });
+    } catch (e: any) {
+      // If the record was deleted concurrently, treat as success
+      if (e?.code === 'P2025') {
+        return NextResponse.json({ ok: true });
+      }
+      throw e;
+    }
+    // audit log
+    await prisma.changeLog.create({
+      data: {
+        entityType: 'Employee',
+        entityId: id,
+        action: 'delete',
+        changes: { before },
+        actorId: null,
+      },
+    });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     const status = e?.code === 'P2025' ? 404 : 400;

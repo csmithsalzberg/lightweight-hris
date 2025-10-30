@@ -30,8 +30,6 @@ model Employee {
 
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
-
-  changeLogs    ChangeLog[]
 }
 
 model ChangeLog {
@@ -42,8 +40,6 @@ model ChangeLog {
   changes     Json
   actorId     String?
   createdAt   DateTime @default(now())
-
-  employee    Employee? @relation(fields: [entityId], references: [id], onDelete: Cascade)
 }
 
 

@@ -28,6 +28,16 @@ export async function POST(req: Request) {
         status: body.status,
       },
     });
+    // audit log
+    await prisma.changeLog.create({
+      data: {
+        entityType: 'Employee',
+        entityId: created.id,
+        action: 'create',
+        changes: { after: created },
+        actorId: null,
+      },
+    });
     return NextResponse.json(created, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'Failed to create', code: e?.code ?? null, meta: e?.meta ?? null }, { status: 400 });

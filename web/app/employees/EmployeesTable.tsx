@@ -16,8 +16,12 @@ export default function EmployeesTable({ employees }: Props) {
   const [status, setStatus] = React.useState<string>("");
   const [startDate, setStartDate] = React.useState<string>("");
   const [endDate, setEndDate] = React.useState<string>("");
+  const [manager, setManager] = React.useState<string>("");
   const [sortKey, setSortKey] = React.useState<keyof Employee | 'hire_date'>('name');
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc');
+  const [exportOpen, setExportOpen] = React.useState(false);
+  const [importing, setImporting] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -29,11 +33,12 @@ export default function EmployeesTable({ employees }: Props) {
     );
     if (department) out = out.filter((e) => e.department === department);
     if (title) out = out.filter((e) => e.title === title);
+    if (manager) out = out.filter((e) => e.manager_id === manager);
     if (status) out = out.filter((e) => e.status === status);
     if (startDate) out = out.filter((e) => e.hire_date >= startDate);
     if (endDate) out = out.filter((e) => e.hire_date <= endDate);
     return out;
-  }, [items, query, department, title, status, startDate, endDate]);
+  }, [items, query, department, title, manager, status, startDate, endDate]);
 
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
@@ -57,7 +62,7 @@ export default function EmployeesTable({ employees }: Props) {
     return arr;
   }, [filtered, sortKey, sortDir]);
 
-  function downloadCsv() {
+  function getExportData() {
     const headers = [
       'id','name','title','department','manager_id','contact_email','contact_phone','hire_date','salary','status',
     ];
@@ -73,6 +78,11 @@ export default function EmployeesTable({ employees }: Props) {
       String(e.salary),
       e.status,
     ]);
+    return { headers, rows } as const;
+  }
+
+  function downloadCsv() {
+    const { headers, rows } = getExportData();
     const csv = [headers, ...rows]
       .map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(','))
       .join('\n');
@@ -83,6 +93,71 @@ export default function EmployeesTable({ employees }: Props) {
     a.download = 'employees.csv';
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadExcel() {
+    const res = await fetch('/api/employees/export?format=xlsx');
+    if (!res.ok) return alert('Failed to export Excel');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'employees.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadPdf() {
+    const res = await fetch('/api/employees/export?format=pdf');
+    if (!res.ok) return alert('Failed to export PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'employees.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportFile(file: File) {
+    try {
+      setImporting(true);
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/employees/import', { method: 'POST', body: form });
+      const result = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        const details = result?.errors?.length ? `\nDetails:\n${result.errors.slice(0,5).map((e: any) => `Row ${e.row}: ${e.message}`).join('\n')}` : '';
+        throw new Error((result?.error || 'Import failed') + details);
+      }
+      // Refresh employees list
+      const refreshed = await fetch('/api/employees', { cache: 'no-store' });
+      if (refreshed.ok) {
+        const data = await refreshed.json();
+        const mapped: Employee[] = (data.employees ?? []).map((e: any) => ({
+          id: e.id,
+          name: e.name,
+          title: e.title,
+          department: e.department,
+          manager_id: e.managerId ?? null,
+          contact_email: e.contactEmail,
+          contact_phone: e.contactPhone ?? undefined,
+          hire_date: typeof e.hireDate === 'string' ? e.hireDate.slice(0, 10) : e.hireDate,
+          salary: e.salary,
+          status: e.status,
+        }));
+        setItems(mapped);
+      }
+      const msg = result?.failed
+        ? `Import complete: ${result.inserted}/${result.total} rows inserted. ${result.failed} failed.` + (result.errors?.length ? `\nDetails:\n${result.errors.slice(0,5).map((e: any) => `Row ${e.row}: ${e.message}`).join('\n')}` : '')
+        : 'Import complete';
+      alert(msg);
+    } catch (e: any) {
+      alert(e?.message || 'Import failed');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   }
 
   async function handleCreate(vals: EmployeeFormValues) {
@@ -133,12 +208,12 @@ export default function EmployeesTable({ employees }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3 pb-3">
+      <div className="flex flex-wrap items-center gap-3 pb-3">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search employees..."
-          className="w-full max-w-sm rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full sm:w-80 rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           onClick={() => setShowForm({ mode: 'create' })}
@@ -146,12 +221,43 @@ export default function EmployeesTable({ employees }: Props) {
         >
           Add Employee
         </button>
-        <button
-          onClick={downloadCsv}
-          className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Export CSV
-        </button>
+        <div className="ml-auto flex items-center gap-2 relative">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, .xlsx"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleImportFile(f);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            disabled={importing}
+          >
+            {importing ? 'Importing…' : 'Import'}
+          </button>
+          <div className="relative">
+          <button
+            onClick={() => setExportOpen((v) => !v)}
+            className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            aria-haspopup="menu"
+            aria-expanded={exportOpen}
+          >
+            Export ▾
+          </button>
+          {exportOpen && (
+            <div className="absolute right-0 mt-2 w-40 rounded border border-gray-200 bg-white py-1 shadow-lg z-10" role="menu">
+              <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadCsv(); }}>CSV</button>
+              <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadExcel(); }}>Excel</button>
+              <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadPdf(); }}>PDF</button>
+            </div>
+          )}
+          </div>
+        </div>
       </div>
 
       {/* sorting is controlled by clicking column headers */}
@@ -255,7 +361,22 @@ export default function EmployeesTable({ employees }: Props) {
                   ))}
                 </select>
               </th>
-              <th className="p-2"></th>
+              <th className="p-2">
+                <select
+                  value={manager}
+                  onChange={(e) => setManager(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1"
+                >
+                  <option value="">All</option>
+                  {Array.from(new Set(items.map((e) => e.manager_id).filter((id): id is string => Boolean(id)))).map((id) => {
+                    const m = employees.find((e) => e.id === id);
+                    if (!m) return null;
+                    return (
+                      <option key={id} value={id}>{m.name}</option>
+                    );
+                  })}
+                </select>
+              </th>
               <th className="p-2">
                 <div className="flex items-center gap-2">
                   <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-1/2 rounded border border-gray-300 px-2 py-1" />

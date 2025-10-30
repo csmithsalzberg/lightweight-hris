@@ -3,14 +3,23 @@
 A lightweight HRIS built with Next.js (App Router) and Prisma/Postgres.
 
 ### Implemented features
-- Employee Directory (`/employees`): list with client-side search/filter and CSV export.
-- API: DB-backed CRUD for employees.
+- Employee Directory (`/employees`): list with client-side search/filter and export/import.
+  - Filters: query, Title, Department, Manager, Hire Date range, Status.
+  - Export: CSV, Excel (.xlsx), PDF (server-generated).
+  - Import: CSV/XLSX upload to bulk-create employees; reports per-row errors.
+- API: DB-backed CRUD for employees and utilities.
   - `GET /api/employees` → list employees
   - `POST /api/employees` → create employee
   - `GET /api/employees/[id]` → get one
   - `PUT /api/employees/[id]` → update
   - `DELETE /api/employees/[id]` → delete
-- Org Chart stub (`/org-chart`): page scaffold for future visualization.
+  - `POST /api/employees/import` → CSV/XLSX bulk import (validates, returns summary)
+  - `GET /api/employees/export?format=xlsx|pdf` → server-side exports
+- Org Chart (`/org-chart`): expandable/collapsible nodes with per-employee details.
+  - Excludes employees with status `terminated`.
+  - Toggle to expand/collapse a manager's reports; toggle to show/hide details (email, hire date, status).
+- Change Log (`/change-log`): simple ordered list of recent changes.
+  - Logs create/update/delete with before/after snapshots and actor when available.
 
 #### Managing employees in the UI
 - Add: Click "Add Employee" on `/employees`, fill the form, Save.
@@ -113,3 +122,28 @@ npm run db:seed
 ```
 
 Then open `/api/employees` or the Employees page to see data.
+
+## Exports & Imports
+
+- Exports
+  - CSV generated on the client.
+  - XLSX and PDF generated server-side: `/api/employees/export?format=xlsx|pdf`.
+  - Dependencies: `xlsx`, `pdf-lib`.
+- Imports
+  - Upload CSV/XLSX via the Import button on `/employees`.
+  - Required headers: `name,title,department,contact_email,hire_date,salary,status`.
+  - Optional: `manager_id,contact_phone`.
+  - Server returns `{ inserted, failed, total, errors[] }` and the UI shows a summary with the first few error details.
+
+## Audit logging (ChangeLog)
+
+- Create/Update/Delete operations write to `ChangeLog` with `before`/`after` payloads.
+- ChangeLog is decoupled from `Employee` via FK removal; run a migration after schema updates:
+```
+npx prisma migrate dev -n decouple-changelog
+```
+- View logs at `/change-log`.
+
+## Timezones & dates
+
+- The API stores `hireDate` as a `DateTime`. Passing a bare `YYYY-MM-DD` string through `new Date(...)` is treated as UTC and can shift by local timezone. Import uses the provided date string and the server stores it directly; display is rendered as `YYYY-MM-DD` in the UI.
