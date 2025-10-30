@@ -3,9 +3,23 @@
 A lightweight HR platform with employee directory, org chart, imports/exports, and role-based access control. Built with Next.js (App Router) and Prisma (Postgres).
 
 ## Screenshots / GIFs
-- TODO: Add screenshots of Employee Directory
-- TODO: Add screenshot of Org Chart
-- TODO: Add screenshot of Change Log
+# Screenshots for HR/Admin Users
+Notice the edit/delete buttons, and options to add, import, and export employee information here:
+<img width="1908" height="780" alt="image" src="https://github.com/user-attachments/assets/d1c3f81c-1787-4ba6-a7fb-e21dc72ea02b" />
+
+Notice the export button as an option in the org-chart here:
+<img width="1908" height="794" alt="image" src="https://github.com/user-attachments/assets/90ab85c2-996a-462c-afe8-60bd9d62747e" />
+
+The change log is only an option to view for HR/Admin users:
+<img width="1892" height="832" alt="image" src="https://github.com/user-attachments/assets/14165858-41e3-4e32-805f-d7ad67dace64" />
+
+Notice a regular employee can only edit their direct reports' information (Joe Johnson here), and don't have options to add/import/export employees:
+<img width="1904" height="786" alt="image" src="https://github.com/user-attachments/assets/6e722799-0bf7-4e3e-8f7a-a6eb4a5e3957" />
+
+Notice there is no export option in the org-chart:
+<img width="1905" height="720" alt="image" src="https://github.com/user-attachments/assets/e6faa6f8-bf82-43b9-8a5a-c50e998672e2" />
+
+There is no option to view the change log for a regular employee
 
 ## Tech Stack
 - Node: Requires >= 20.9.x for Next 16 (use nvm to install Node 20+)
