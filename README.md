@@ -59,6 +59,7 @@ There is no option to view the change log for a regular employee
   - Excel (.xlsx) via `GET /api/employees/export?format=xlsx` (server-side `xlsx`)
   - PDF via `GET /api/employees/export?format=pdf` (server-side `pdf-lib`)
     - Compact column set optimized to fit a page; multi-page handling
+  - Exporting shows "classified" information like salary and ids. Things regular employees can't see.
 - Org Chart
   - Manager → reports visualization with expand/collapse and details
   - Export controls gated by role
