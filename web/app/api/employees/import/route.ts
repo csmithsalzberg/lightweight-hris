@@ -123,7 +123,7 @@ export async function POST(req: Request) {
             status: row.status,
           },
         });
-        // Create login for employee (password = their email) if not exists
+        // Create or update login for employee (password = their email) if not exists
         try {
           const pwd = await hashPassword(created.contactEmail);
           await prisma.user.create({
@@ -135,7 +135,15 @@ export async function POST(req: Request) {
             },
           });
         } catch (err: any) {
-          if (err?.code !== 'P2002') throw err;
+          if (err?.code === 'P2002') {
+            // User already exists - update employeeId if not set
+            await prisma.user.update({
+              where: { email: created.contactEmail },
+              data: { employeeId: created.id },
+            });
+          } else {
+            throw err;
+          }
         }
         await prisma.changeLog.create({
           data: {

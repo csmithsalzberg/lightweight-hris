@@ -507,7 +507,16 @@ export default function EmployeesTable({ employees }: Props) {
                 <div className="flex gap-2">
                   {(() => {
                     const isAdminOrHr = me && (me.role === 'admin' || me.role === 'hr');
-                    const canEmployeeEdit = me && me.role === 'employee' && me.employeeId && emp.manager_id === me.employeeId;
+                    const canEmployeeEdit = me && me.role === 'employee' && me.employeeId && emp.manager_id && String(emp.manager_id) === String(me.employeeId);
+                    // Debug logging - remove after identifying issue
+                    if (me && me.role === 'employee' && emp.name) {
+                      console.log(`[DEBUG] Employee: ${emp.name} (id: ${emp.id})`, {
+                        empManagerId: emp.manager_id,
+                        myEmployeeId: me.employeeId,
+                        match: emp.manager_id && me.employeeId ? String(emp.manager_id) === String(me.employeeId) : false,
+                        canEdit: canEmployeeEdit
+                      });
+                    }
                     const canEdit = Boolean(isAdminOrHr || canEmployeeEdit);
                     return (
                       <>
