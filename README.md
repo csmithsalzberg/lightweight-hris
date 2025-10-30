@@ -191,7 +191,7 @@ All endpoints live under `web/app/api/**` and require authentication unless note
 - Import errors — Endpoint responds with per-row errors; verify required headers and data types
 
 ## License
-- TODO: Add license if applicable
+- No license yet.
 
 ## Key File Links
 - Employees API: `web/app/api/employees/route.ts`
