@@ -10,6 +10,7 @@ type Props = {
 export default function EmployeesTable({ employees }: Props) {
   const [query, setQuery] = React.useState("");
   const [items, setItems] = React.useState<Employee[]>(employees);
+  const [me, setMe] = React.useState<{ role: 'admin'|'hr'|'employee'; employeeId?: string | null } | null>(null);
   const [showForm, setShowForm] = React.useState<null | { mode: 'create' } | { mode: 'edit', employee: Employee }>(null);
   const [department, setDepartment] = React.useState<string>("");
   const [title, setTitle] = React.useState<string>("");
@@ -22,6 +23,24 @@ export default function EmployeesTable({ employees }: Props) {
   const [exportOpen, setExportOpen] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [showDateFilter, setShowDateFilter] = React.useState(false);
+  const dateFilterRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!showDateFilter) return;
+      const el = dateFilterRef.current;
+      if (el && e.target instanceof Node && !el.contains(e.target)) {
+        setShowDateFilter(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showDateFilter]);
+
+  React.useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(b => setMe(b?.user ?? null)).catch(() => setMe(null));
+  }, []);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -64,14 +83,16 @@ export default function EmployeesTable({ employees }: Props) {
 
   function getExportData() {
     const headers = [
-      'id','name','title','department','manager_id','contact_email','contact_phone','hire_date','salary','status',
+      'id','name','title','department','manager_id','manager','contact_email','contact_phone','hire_date','salary','status',
     ];
+    const idToName = new Map(employees.map((emp) => [emp.id, emp.name] as const));
     const rows = sorted.map((e) => [
       e.id,
       e.name,
       e.title,
       e.department,
       e.manager_id ?? '',
+      e.manager_id ? (idToName.get(e.manager_id) ?? '') : '',
       e.contact_email,
       e.contact_phone ?? '',
       e.hire_date,
@@ -96,7 +117,8 @@ export default function EmployeesTable({ employees }: Props) {
   }
 
   async function downloadExcel() {
-    const res = await fetch('/api/employees/export?format=xlsx');
+    const ids = sorted.map((e) => e.id).join(',');
+    const res = await fetch(`/api/employees/export?format=xlsx&ids=${encodeURIComponent(ids)}`);
     if (!res.ok) return alert('Failed to export Excel');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -108,7 +130,8 @@ export default function EmployeesTable({ employees }: Props) {
   }
 
   async function downloadPdf() {
-    const res = await fetch('/api/employees/export?format=pdf');
+    const ids = sorted.map((e) => e.id).join(',');
+    const res = await fetch(`/api/employees/export?format=pdf&ids=${encodeURIComponent(ids)}`);
     if (!res.ok) return alert('Failed to export PDF');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -215,12 +238,14 @@ export default function EmployeesTable({ employees }: Props) {
           placeholder="Search employees..."
           className="w-full sm:w-80 rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button
-          onClick={() => setShowForm({ mode: 'create' })}
-          className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
-        >
-          Add Employee
-        </button>
+        {(me && (me.role === 'admin' || me.role === 'hr')) && (
+          <button
+            onClick={() => setShowForm({ mode: 'create' })}
+            className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            Add Employee
+          </button>
+        )}
         <div className="ml-auto flex items-center gap-2 relative">
           <input
             ref={fileInputRef}
@@ -232,29 +257,35 @@ export default function EmployeesTable({ employees }: Props) {
               if (f) handleImportFile(f);
             }}
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            disabled={importing}
-          >
-            {importing ? 'Importing…' : 'Import'}
-          </button>
+          {(me && (me.role === 'admin' || me.role === 'hr')) && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              disabled={importing}
+            >
+              {importing ? 'Importing…' : 'Import'}
+            </button>
+          )}
           <div className="relative">
-          <button
-            onClick={() => setExportOpen((v) => !v)}
-            className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            aria-haspopup="menu"
-            aria-expanded={exportOpen}
-          >
-            Export ▾
-          </button>
-          {exportOpen && (
-            <div className="absolute right-0 mt-2 w-40 rounded border border-gray-200 bg-white py-1 shadow-lg z-10" role="menu">
-              <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadCsv(); }}>CSV</button>
-              <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadExcel(); }}>Excel</button>
-              <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadPdf(); }}>PDF</button>
-            </div>
+          {(me && (me.role === 'admin' || me.role === 'hr')) && (
+            <>
+              <button
+                onClick={() => setExportOpen((v) => !v)}
+                className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                aria-haspopup="menu"
+                aria-expanded={exportOpen}
+              >
+                Export ▾
+              </button>
+              {exportOpen && (
+                <div className="absolute right-0 mt-2 w-40 rounded border border-gray-200 bg-white py-1 shadow-lg z-10" role="menu">
+                  <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadCsv(); }}>CSV</button>
+                  <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadExcel(); }}>Excel</button>
+                  <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setExportOpen(false); downloadPdf(); }}>PDF</button>
+                </div>
+              )}
+            </>
           )}
           </div>
         </div>
@@ -377,10 +408,58 @@ export default function EmployeesTable({ employees }: Props) {
                   })}
                 </select>
               </th>
-              <th className="p-2">
-                <div className="flex items-center gap-2">
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-1/2 rounded border border-gray-300 px-2 py-1" />
-                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-1/2 rounded border border-gray-300 px-2 py-1" />
+              <th className="p-2 align-top">
+                <div className="relative" ref={dateFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowDateFilter((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                    aria-haspopup="dialog"
+                    aria-expanded={showDateFilter}
+                    title="Filter by hire date"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                      <path d="M7 2a1 1 0 0 0-1 1v1H5a3 3 0 0 0-3 3v11a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3h-1V3a1 1 0 1 0-2 0v1H8V3a1 1 0 0 0-1-1ZM5 8h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+                    </svg>
+                    <span>Hire Date</span>
+                  </button>
+                  {showDateFilter && (
+                    <div className="absolute z-10 mt-2 w-56 rounded border border-gray-200 bg-white p-3 shadow-lg">
+                      <div className="mb-2 text-xs font-medium text-gray-700">Hire Date Range</div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[11px] text-gray-600">Start</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                        />
+                        <label className="text-[11px] text-gray-600">End</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                        />
+                        <div className="mt-1 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => { setStartDate(''); setEndDate(''); setShowDateFilter(false); }}
+                            className="text-xs text-gray-600 hover:underline"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowDateFilter(false)}
+                            className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </th>
               <th className="p-2">
@@ -424,22 +503,35 @@ export default function EmployeesTable({ employees }: Props) {
                     </span>
                   </td>
                   <td className="p-3 text-blue-600 underline">{emp.contact_email}</td>
-                  <td className="p-3">
-                    <div className="flex gap-2">
-                      <button
-                        className="rounded border px-2 py-1 text-xs"
-                        onClick={() => setShowForm({ mode: 'edit', employee: emp })}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
-                        onClick={() => handleDelete(emp)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+              <td className="p-3">
+                <div className="flex gap-2">
+                  {(() => {
+                    const isAdminOrHr = me && (me.role === 'admin' || me.role === 'hr');
+                    const canEmployeeEdit = me && me.role === 'employee' && me.employeeId && emp.manager_id === me.employeeId;
+                    const canEdit = Boolean(isAdminOrHr || canEmployeeEdit);
+                    return (
+                      <>
+                        {canEdit && (
+                          <button
+                            className="rounded border px-2 py-1 text-xs"
+                            onClick={() => setShowForm({ mode: 'edit', employee: emp })}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {me && (me.role === 'admin' || me.role === 'hr') && (
+                          <button
+                            className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
+                            onClick={() => handleDelete(emp)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </td>
                 </tr>
               );
             })}

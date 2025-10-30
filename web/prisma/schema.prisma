@@ -28,6 +28,9 @@ model Employee {
   manager       Employee?         @relation("ManagerReports", fields: [managerId], references: [id], onDelete: SetNull)
   reports       Employee[]        @relation("ManagerReports")
 
+  // Auth linkage (optional one-to-one)
+  user          User?
+
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 }
@@ -40,6 +43,25 @@ model ChangeLog {
   changes     Json
   actorId     String?
   createdAt   DateTime @default(now())
+}
+
+
+enum Role {
+  admin
+  hr
+  employee
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  role          Role
+  employeeId    String?  @unique
+  employee      Employee? @relation(fields: [employeeId], references: [id])
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 

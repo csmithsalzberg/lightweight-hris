@@ -1,149 +1,109 @@
-## Lightweight HRIS (web)
+# Next.js App (web)
 
-A lightweight HRIS built with Next.js (App Router) and Prisma/Postgres.
+A Next.js 16 (App Router) application providing an HRIS: Employee Directory with search/filter, bulk CSV/Excel import, CSV/Excel/PDF export, Org Chart, Change Log, and RBAC.
 
-### Implemented features
-- Employee Directory (`/employees`): list with client-side search/filter and export/import.
-  - Filters: query, Title, Department, Manager, Hire Date range, Status.
-  - Export: CSV, Excel (.xlsx), PDF (server-generated).
-  - Import: CSV/XLSX upload to bulk-create employees; reports per-row errors.
-- API: DB-backed CRUD for employees and utilities.
-  - `GET /api/employees` → list employees
-  - `POST /api/employees` → create employee
-  - `GET /api/employees/[id]` → get one
-  - `PUT /api/employees/[id]` → update
-  - `DELETE /api/employees/[id]` → delete
-  - `POST /api/employees/import` → CSV/XLSX bulk import (validates, returns summary)
-  - `GET /api/employees/export?format=xlsx|pdf` → server-side exports
-- Org Chart (`/org-chart`): expandable/collapsible nodes with per-employee details.
-  - Excludes employees with status `terminated`.
-  - Toggle to expand/collapse a manager's reports; toggle to show/hide details (email, hire date, status).
-- Change Log (`/change-log`): simple ordered list of recent changes.
-  - Logs create/update/delete with before/after snapshots and actor when available.
-
-#### Managing employees in the UI
-- Add: Click "Add Employee" on `/employees`, fill the form, Save.
-- Edit: Click "Edit" on a row, update fields, Save.
-- Delete: Click "Delete" on a row and confirm.
-
-### Quick start
-
-1) Install deps
-```
-npm install
-```
-
-2) Configure database (Neon/Postgres) in `web/.env`:
-```
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public"
-```
-
-3) Generate Prisma client and run migrations
-```
-npm run prisma:generate
-npm run prisma:migrate -- --name init
-```
-
-4) Seed sample data
-```
-npm run db:seed
-```
-
-5) Run the app
-```
-npm run dev
-```
-
-Open `/employees` and `/api/employees` to verify data.
-
----
-
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+cd web
+npm install
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+# Create web/.env with:
+# DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public
+# AUTH_SECRET=a-strong-random-secret
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Database (Prisma + Postgres)
-
-1. Create a Postgres database (e.g., Neon). Copy its connection string.
-2. Create a `.env` file in `web/` with:
-
-```
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public"
-```
-
-3. Generate Prisma client and run migrations:
-
-```
 npm run prisma:generate
 npm run prisma:migrate -- --name init
+npm run db:seed   # optional
+npm run dev       # http://localhost:3000
 ```
 
-4. Start the app and hit `/api/employees` to verify DB connectivity.
+Env vars used by this app:
+- `DATABASE_URL` — Postgres connection string for Prisma
+- `AUTH_SECRET` — HMAC secret used to sign the session cookie
 
-### Seed sample data
+## Scripts
 
-After migrations, you can populate sample employees:
+| Script | What it does |
+|---|---|
+| `dev` | Start Next.js dev server |
+| `build` | Production build |
+| `start` | Start production server |
+| `lint` | Run ESLint |
+| `prisma:generate` | Generate Prisma Client |
+| `prisma:migrate` | `prisma migrate dev` (create/apply migration) |
+| `prisma:deploy` | `prisma migrate deploy` (apply in prod) |
+| `db:seed` | Run `scripts/seed.js` |
 
+Defined in `web/package.json`.
+
+## Routes
+
+### UI Pages
+- `/` — Home
+- `/employees` — Employee Directory (search/filter/sort; add/edit/delete; import/export)
+- `/org-chart` — Org chart (manager → reports)
+- `/change-log` — Change log (Admin/HR only)
+- `/login`, `/signup` — Auth
+
+### API Routes
+- Auth
+  - `GET /api/auth/me` — Current user (id, role, employeeId, email, name)
+  - `POST /api/auth/login` — Login (sets HTTP-only session cookie)
+  - `POST /api/auth/logout` — Logout (clears cookie)
+  - `POST /api/auth/signup` — Create user
+- Employees
+  - `GET /api/employees` — List employees
+  - `POST /api/employees` — Create employee (Admin/HR). Also creates a `User` account for the employee (role `employee`, initial password = email, hashed).
+  - `GET /api/employees/[id]` — Read one
+  - `PUT /api/employees/[id]` — Update (Admin/HR) or Employee can edit only direct reports; cycle prevention on manager chain
+  - `DELETE /api/employees/[id]` — Delete (Admin/HR)
+  - `POST /api/employees/import` — Bulk import CSV/XLSX (Admin/HR). Validates; per-row errors; auto-creates login accounts.
+  - `GET /api/employees/export?format=xlsx|pdf[&ids=...]` — Export (Admin/HR). `ids` narrows to filtered set.
+
+See `app/api/**/route.ts` for implementations.
+
+## Features
+
+- Employees table:
+  - Search, filters (Title, Department, Manager, Hire Date popover, Status), sorting
+  - Inline Edit/Delete; modal forms for Create/Edit; delete confirm
+- Bulk import CSV/Excel (`/api/employees/import`):
+  - Required columns: `name,title,department,contact_email,hire_date,salary,status`
+  - Optional: `manager_id,contact_phone`
+  - Errors reported per row; successful inserts create `User` accounts (initial password = email, hashed)
+- Export CSV/Excel/PDF:
+  - CSV built client-side (from current filtered/sorted view)
+  - Excel via `xlsx` and PDF via `pdf-lib` on the server (`/api/employees/export`)
+  - PDF columns: Name, Title, Department, Manager, Status; truncation + pagination
+- Org chart:
+  - Forest from `managerId` links; expand/collapse; details (email, hire date, status)
+- Change log:
+  - Create/Update/Delete write to `ChangeLog` with before/after snapshots
+
+## RBAC usage in the UI
+- Admin/HR: See Add/Import/Export on `/employees`, Export on `/org-chart`, and the Change Log link.
+- Employee/Viewer: Read-only in general; Employees can edit only their direct reports (button gated in UI).
+- The API also enforces all rules; UI gating is for UX.
+
+## Prisma Integration
+- Prisma client: `lib/prisma.ts`
+- Schema: `prisma/schema.prisma`; migrations in `prisma/migrations/**`
+- Server pages (e.g., `/employees`, `/org-chart`) read employees via Prisma and map to UI types.
+- CRUD/Import/Export implemented in `app/api/employees/**`.
+
+Run Prisma Studio for debugging:
+```bash
+cd web
+npx prisma studio
 ```
-npm run db:seed
-```
 
-Then open `/api/employees` or the Employees page to see data.
+## Dev Notes
+- Sessions are HMAC-signed cookies (`lib/auth.ts`) — no external JWT dependency.
+- Global auth enforcement: `middleware.ts` redirects to `/login` unless authenticated (auth routes and static excluded).
+- Server pages use Prisma directly (avoids cookie-forwarding issues in server `fetch`).
 
-## Exports & Imports
-
-- Exports
-  - CSV generated on the client.
-  - XLSX and PDF generated server-side: `/api/employees/export?format=xlsx|pdf`.
-  - Dependencies: `xlsx`, `pdf-lib`.
-- Imports
-  - Upload CSV/XLSX via the Import button on `/employees`.
-  - Required headers: `name,title,department,contact_email,hire_date,salary,status`.
-  - Optional: `manager_id,contact_phone`.
-  - Server returns `{ inserted, failed, total, errors[] }` and the UI shows a summary with the first few error details.
-
-## Audit logging (ChangeLog)
-
-- Create/Update/Delete operations write to `ChangeLog` with `before`/`after` payloads.
-- ChangeLog is decoupled from `Employee` via FK removal; run a migration after schema updates:
-```
-npx prisma migrate dev -n decouple-changelog
-```
-- View logs at `/change-log`.
-
-## Timezones & dates
-
-- The API stores `hireDate` as a `DateTime`. Passing a bare `YYYY-MM-DD` string through `new Date(...)` is treated as UTC and can shift by local timezone. Import uses the provided date string and the server stores it directly; display is rendered as `YYYY-MM-DD` in the UI.
+## Troubleshooting
+- “next: not found”: ensure Node >= 20.9 and run `npm install` in `web/`.
+- Prisma P10xx errors: check `web/.env` → `DATABASE_URL`, then `npm run prisma:generate` and `npm run prisma:migrate -- --name <name>`.
+- Quick DB reset: use Prisma Studio to delete rows or write a tiny reset script; re-seed via `npm run db:seed`.

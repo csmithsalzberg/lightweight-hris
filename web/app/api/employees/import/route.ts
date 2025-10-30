@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
+import { hashPassword } from '@/lib/passwords';
 import * as XLSX from 'xlsx';
 
 export async function POST(req: Request) {
   try {
+    const session = await getSession();
+    if (!session || (session.role !== 'admin' && session.role !== 'hr')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const form = await req.formData();
     const file = form.get('file');
     if (!(file instanceof File)) {
@@ -117,6 +123,20 @@ export async function POST(req: Request) {
             status: row.status,
           },
         });
+        // Create login for employee (password = their email) if not exists
+        try {
+          const pwd = await hashPassword(created.contactEmail);
+          await prisma.user.create({
+            data: {
+              email: created.contactEmail,
+              passwordHash: pwd,
+              role: 'employee',
+              employeeId: created.id,
+            },
+          });
+        } catch (err: any) {
+          if (err?.code !== 'P2002') throw err;
+        }
         await prisma.changeLog.create({
           data: {
             entityType: 'Employee',

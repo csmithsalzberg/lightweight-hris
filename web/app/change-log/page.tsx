@@ -1,6 +1,12 @@
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export default async function ChangeLogPage() {
+  const session = await getSession();
+  if (!session || (session.role !== 'admin' && session.role !== 'hr')) {
+    redirect('/');
+  }
   const logs = await prisma.changeLog.findMany({
     orderBy: { createdAt: 'desc' },
     take: 200,

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 
 type Params = { params: { id?: string } };
 
@@ -18,9 +19,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id?: string }>
 
 export async function PUT(req: Request, ctx: { params: Promise<{ id?: string }> } | Params) {
   try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const p = 'then' in (ctx as any).params ? await (ctx as any).params : (ctx as any).params;
     const id = p.id as string | undefined;
     if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    if (session.role === 'employee') {
+      const currentManagerId = session.employeeId ?? '__none__';
+      const target = await prisma.employee.findUnique({ select: { managerId: true }, where: { id } });
+      if (!target || target.managerId !== currentManagerId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
     const body = await req.json();
     const before = await prisma.employee.findUnique({ where: { id } });
     // Basic validation for managerId: disallow self and require existing manager when provided
@@ -81,6 +91,10 @@ export async function DELETE(
   _req: Request, 
   { params }: { params: Promise<{ id?: string }> }) {
   try {
+    const session = await getSession();
+    if (!session || (session.role !== 'admin' && session.role !== 'hr')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });

@@ -12,7 +12,14 @@ export async function GET() {
   }
 }
 
+import { getSession } from '@/lib/auth';
+import { hashPassword } from '@/lib/passwords';
+
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session || (session.role !== 'admin' && session.role !== 'hr')) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+  }
   try {
     const body = await req.json();
     const created = await prisma.employee.create({
@@ -28,6 +35,21 @@ export async function POST(req: Request) {
         status: body.status,
       },
     });
+    // Create login for employee (password = their email) if not exists
+    try {
+      const pwd = await hashPassword(created.contactEmail);
+      await prisma.user.create({
+        data: {
+          email: created.contactEmail,
+          passwordHash: pwd,
+          role: 'employee',
+          employeeId: created.id,
+        },
+      });
+    } catch (err: any) {
+      // Ignore if user already exists
+      if (err?.code !== 'P2002') throw err;
+    }
     // audit log
     await prisma.changeLog.create({
       data: {

@@ -1,20 +1,12 @@
 import React from 'react';
 import { Employee } from '@/types/employee';
 import EmployeesTable from './EmployeesTable';
+import { prisma } from '@/lib/prisma';
 
-// Server Component fetch
+// Server Component: read directly from DB to avoid cookie forwarding issues
 async function getEmployees() {
-  const res = await fetch('http://localhost:3000/api/employees', {
-    cache: 'no-store',
-  });
-
-  if (!res.ok) {
-    throw new Error('Failed to fetch employees');
-  }
-
-  const data = await res.json();
-  // Map API camelCase (DB) -> front-end Employee type
-  const mapped: Employee[] = (data.employees ?? []).map((e: any) => ({
+  const rows = await prisma.employee.findMany();
+  const mapped: Employee[] = rows.map((e) => ({
     id: e.id,
     name: e.name,
     title: e.title,
@@ -22,9 +14,9 @@ async function getEmployees() {
     manager_id: e.managerId ?? null,
     contact_email: e.contactEmail,
     contact_phone: e.contactPhone ?? undefined,
-    hire_date: typeof e.hireDate === 'string' ? e.hireDate.slice(0, 10) : e.hireDate,
+    hire_date: e.hireDate.toISOString().slice(0, 10),
     salary: e.salary,
-    status: e.status,
+    status: e.status as any,
   }));
   return mapped;
 }
@@ -34,9 +26,8 @@ export default async function EmployeesPage() {
 
   return (
     <main className="p-6 space-y-4">
-      <header>
-        <h1 className="text-2xl font-semibold">Employee Directory</h1>
-        <p className="text-sm text-gray-600">Search, filter, and export employees.</p>
+      <header className="flex items-center justify-between border-b pb-3">
+        <h1 className="text-3xl font-semibold tracking-tight">Employee Directory</h1>
       </header>
       <EmployeesTable employees={employees} />
     </main>
