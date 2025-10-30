@@ -6,7 +6,6 @@ export default function SignupPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [role, setRole] = React.useState<'admin' | 'hr' | 'employee'>('employee');
-  const [employeeId, setEmployeeId] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
 
@@ -17,7 +16,7 @@ export default function SignupPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role, employeeId: employeeId || null }),
+        body: JSON.stringify({ email, password, role }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
@@ -44,7 +43,6 @@ export default function SignupPage() {
             <option value="hr">HR</option>
             <option value="admin">Admin</option>
           </select>
-          <input className="w-full rounded border px-3 py-2" placeholder="Employee ID (optional for Employee role)" value={employeeId} onChange={e => setEmployeeId(e.target.value)} />
           <button disabled={loading} className="w-full rounded bg-blue-600 px-3 py-2 text-white">{loading ? 'Signing up…' : 'Sign up'}</button>
         </form>
       </div>
