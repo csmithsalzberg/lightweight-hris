@@ -53,8 +53,8 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id?: string }> 
         if (cursor === id) {
           return NextResponse.json({ error: 'Choosing this manager creates a circular reporting chain' }, { status: 400 });
         }
-        const next = await prisma.employee.findUnique({ select: { managerId: true }, where: { id: cursor } });
-        cursor = next?.managerId ?? null;
+        const mgrRow: { managerId: string | null } | null = await prisma.employee.findUnique({ select: { managerId: true }, where: { id: cursor } });
+        cursor = (mgrRow?.managerId as string | null) ?? null;
       }
     }
     const updated = await prisma.employee.update({
