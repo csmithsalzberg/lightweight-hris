@@ -47,6 +47,12 @@ There is no option to view the change log for a regular employee
 - Employee Directory
   - Search/filter/sort (Title, Department, Manager, Hire Date range, Status)
   - Single add/edit/delete
+    - Note, you cannot choose a manager that would create a circular chain of managers
+    - Only HR/Admin can add/edit/delete all employees
+    - A direct manager can edit their direct reports' details
+    - When a user is added, they automcatically have an account with username/password both the email account
+  - Sign up page to create a user that can interact with the HRIS
+    - Note: this user is not an employee necessarily. But all new employees have logins.
   - Bulk import CSV/Excel with validation and error reporting
 - Exports
   - CSV (client-side)
@@ -56,9 +62,12 @@ There is no option to view the change log for a regular employee
 - Org Chart
   - Manager → reports visualization with expand/collapse and details
   - Export controls gated by role
+- Change Log
+  - Shows a record of all changes to employees
+  - Only visible to HR/Admin
 - RBAC
-  - Admin: Full access, manage users/data/settings
-  - HR: Full employee data operations; import/export
+  - Admin: Full access, manage users/data/settings, change-log page
+  - HR: Full employee data operations; import/export, change-log page
   - Employee/Viewer: Read-only; Employees can edit their direct reports
   - (Implicit Manager via the “Employee with direct reports” rule)
 - Auth
@@ -173,7 +182,6 @@ All endpoints live under `web/app/api/**` and require authentication unless note
 
 ## Testing & Linting
 - Lint: `npm run lint` (ESLint 9, Next config)
-- Tests: TODO (no test suite currently present)
 
 ## Deployment
 - Build: `npm run build`
